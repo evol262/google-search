@@ -8,6 +8,12 @@ import (
 	"github.com/gocolly/colly/v2"
 )
 
+type NoResultsError struct{}
+
+func (n *NoResultsError) Error() string {
+	return "No results found"
+}
+
 // Result represents a single result from Google Search.
 type Result struct {
 
@@ -289,6 +295,18 @@ func Search(ctx context.Context, searchTerm string, opts ...SearchOptions) ([]Re
 
 	c.OnError(func(r *colly.Response, err error) {
 		rErr = err
+	})
+
+	c.OnHTML("div.med", func(e *colly.HTMLElement) {
+		sel := e.DOM
+
+		for i := range sel.Nodes {
+			item := sel.Eq(i)
+			//check for no results
+			if strings.Contains(item.Text(), "No results") {
+				rErr = &NoResultsError{}
+			}
+		}
 	})
 
 	c.OnHTML("div.g", func(e *colly.HTMLElement) {
